@@ -1,0 +1,54 @@
+version: "3.8"
+
+services:
+  db:
+    image: postgres:latest
+    restart: always
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+
+  redis:
+    image: redis:7
+    restart: always
+    ports:
+      - "6379:6379"
+
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: python manage.py runserver 0.0.0.0:8000
+    volumes:
+      - ./backend:/app
+      - shared_tmp:/tmp  # ✅ shared volume added
+    ports:
+      - "8000:8000"
+    depends_on:
+      - db
+      - redis
+    env_file:
+      - .env
+
+  celery:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: celery -A credit_system worker --loglevel=info
+    volumes:
+      - ./backend:/app
+      - shared_tmp:/tmp  # ✅ shared volume added
+    depends_on:
+      - redis
+      - db
+    env_file:
+      - .env
+
+volumes:
+  postgres_data:
+  shared_tmp:  # ✅ declare the new shared volume
